@@ -48,8 +48,8 @@ target_compile_definitions(DemucsJUCE
     PRIVATE
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
-        JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:DemucsJUCE,PRODUCT_NAME>"
-        JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:DemucsJUCE,VERSION>"
+        JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:DemucsJUCE,JUCE_PRODUCT_NAME>"
+        JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:DemucsJUCE,JUCE_VERSION>"
 )
 
 target_link_libraries(DemucsJUCE
@@ -59,7 +59,15 @@ target_link_libraries(DemucsJUCE
         juce::juce_events
         juce::juce_graphics
         juce::juce_gui_basics
+        juce::juce_gui_extra
+        juce::juce_audio_basics
+        juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_processors
+        juce::juce_audio_utils
         demucs.cpp.lib
+        BLAS::BLAS
+        curl
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
