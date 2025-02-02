@@ -2,7 +2,23 @@ cmake_minimum_required(VERSION 3.22)
 
 project(DemucsJUCE VERSION 0.0.1)
 
+# Set OpenBLAS options before including demucs.cpp
+set(USE_OPENBLAS ON CACHE BOOL "Use OpenBLAS")
+set(BLA_VENDOR OpenBLAS)
+set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/opt/homebrew/opt/openblas")
+
+# Add JUCE
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Submodule/JUCE)
+
+# Configure demucs.cpp build
+set(JUCE_BUILD_HELPER_TOOLS OFF CACHE BOOL "")
+set(JUCE_BUILD_EXAMPLES OFF CACHE BOOL "")
+set(JUCE_BUILD_TESTS OFF CACHE BOOL "")
+
+# Add demucs.cpp but disable tests and examples
+set(BUILD_TESTING OFF CACHE BOOL "")
+set(BUILD_EXAMPLES OFF CACHE BOOL "")
+add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Submodule/demucs.cpp EXCLUDE_FROM_ALL)
 
 juce_add_gui_app(DemucsJUCE
     PRODUCT_NAME "Demucs JUCE"
@@ -21,11 +37,11 @@ target_sources(DemucsJUCE
         Source/MainComponent.cpp
 )
 
-# Add include directories for JUCE headers
 target_include_directories(DemucsJUCE
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_BINARY_DIR}/JuceLibraryCode
+        ${CMAKE_CURRENT_SOURCE_DIR}/Submodule/demucs.cpp/src
 )
 
 target_compile_definitions(DemucsJUCE
@@ -43,8 +59,14 @@ target_link_libraries(DemucsJUCE
         juce::juce_events
         juce::juce_graphics
         juce::juce_gui_basics
+        demucs.cpp.lib
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
-) 
+)
+
+if(USE_OPENBLAS)
+    find_package(BLAS REQUIRED)
+    target_link_libraries(DemucsJUCE PRIVATE BLAS::BLAS)
+endif() 
