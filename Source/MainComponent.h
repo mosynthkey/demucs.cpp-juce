@@ -17,7 +17,7 @@ public:
 private:
     void run() override; // Thread
     void processAudioFile();
-    void updateProgressMessage(const juce::String& message);
+    void updateProgressMessage(const juce::String& message, float progress = -1.f);
     void loadModel();
     void resetProcessingState();
 
@@ -25,6 +25,8 @@ private:
     juce::TextButton mProcessButton { "Process" };
     juce::TextEditor mLogArea;
     juce::Label mStatusLabel { {}, "Status: Ready" };
+    juce::ProgressBar mProgressBar { mProgress };
+    double mProgress { 0.0 };
 
     juce::File mSelectedFile;
     juce::File mModelFile;
@@ -35,10 +37,10 @@ private:
 
     std::atomic<bool> mIsProcessing { false };
 
-    static constexpr const char* STEM_NAMES[] = { 
+    static constexpr int kNumStems = 6;
+    static constexpr const char* STEM_NAMES[kNumStems] = { 
         "drums", "bass", "other", "vocals", "guitar", "piano" 
     };
-    static constexpr int kNumStems = 6;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 }; 

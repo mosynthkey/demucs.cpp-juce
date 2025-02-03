@@ -10,6 +10,7 @@ MainComponent::MainComponent()
     addAndMakeVisible(mProcessButton);
     addAndMakeVisible(mLogArea);
     addAndMakeVisible(mStatusLabel);
+    addAndMakeVisible(mProgressBar);
 
     mOpenButton.onClick = [this]()
     {
@@ -162,6 +163,10 @@ void MainComponent::resized()
     mStatusLabel.setBounds(area.removeFromTop(30));
 
     area.removeFromTop(10);
+    auto progressArea = area.removeFromTop(20);
+    mProgressBar.setBounds(progressArea);
+
+    area.removeFromTop(10);
     mLogArea.setBounds(area);
 }
 
@@ -203,12 +208,10 @@ void MainComponent::run()
 
 void MainComponent::processAudioFile()
 {
-    if (!mModel)
-    {
-        throw std::runtime_error("Model not loaded");
-    }
+    updateProgressMessage("Processing audio file...", 0.0f);
 
-    updateProgressMessage("Processing audio file...");
+    if (!mModel)
+        throw std::runtime_error("Model not loaded");
 
     // Load audio file
     juce::AudioFormatManager formatManager;
@@ -218,23 +221,8 @@ void MainComponent::processAudioFile()
         formatManager.createReaderFor(mSelectedFile));
 
     if (!reader)
-    {
         throw std::runtime_error("Could not load audio file");
-    }
 
-    // Check sample rate
-    if (static_cast<int>(reader->sampleRate) != 44100)
-    {
-        throw std::runtime_error("Only 44.1kHz audio files are supported");
-    }
-
-    // Check channel count
-    if (reader->numChannels != 2)
-    {
-        throw std::runtime_error("Only stereo audio files are supported");
-    }
-
-    // Convert to format expected by demucs.cpp
     const int numSamples = static_cast<int>(reader->lengthInSamples);
     Eigen::MatrixXf audioData(2, numSamples);
     
@@ -246,9 +234,7 @@ void MainComponent::processAudioFile()
     {
         const float* channelData = buffer.getReadPointer(ch);
         for (int i = 0; i < numSamples; ++i)
-        {
             audioData(ch, i) = channelData[i];
-        }
     }
 
     updateProgressMessage("Running Demucs inference...");
@@ -260,8 +246,8 @@ void MainComponent::processAudioFile()
             {
                 throw std::runtime_error("Processing cancelled by user");
             }
-            juce::MessageManager::callAsync([this, message]() {
-                updateProgressMessage(message);
+            juce::MessageManager::callAsync([this, message, progress]() {
+                updateProgressMessage(message, progress);
             });
         });
     
@@ -310,7 +296,7 @@ void MainComponent::processAudioFile()
         updateProgressMessage("Saved " + juce::String(STEM_NAMES[target]));
     }
 
-    updateProgressMessage("Processing complete!");
+    updateProgressMessage("Processing complete!", 1.0f);
     
     juce::MessageManager::callAsync([this]()
     {
@@ -318,19 +304,25 @@ void MainComponent::processAudioFile()
     });
 }
 
-void MainComponent::updateProgressMessage(const juce::String& message)
+void MainComponent::updateProgressMessage(const juce::String& message, float progress)
 {
-    juce::MessageManager::callAsync([this, message]()
+    juce::MessageManager::callAsync([this, message, progress]()
     {
         mStatusLabel.setText(message, juce::dontSendNotification);
         mLogArea.moveCaretToEnd();
         mLogArea.insertTextAtCaret(message + "\n");
+        
+        if (progress >= 0.0f)
+        {
+            mProgress = progress;
+        }
     });
 }
 
 void MainComponent::resetProcessingState()
 {
     mIsProcessing = false;
+    mProgress = 0.0;
     mProcessButton.setButtonText("Process");
     mProcessButton.setEnabled(true);
     mOpenButton.setEnabled(true);
