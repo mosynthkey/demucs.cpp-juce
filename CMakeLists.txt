@@ -1,12 +1,34 @@
 cmake_minimum_required(VERSION 3.22)
 
 project(DemucsJUCE VERSION 0.0.1)
-
+include(FetchContent)
 # Set OpenBLAS options before including demucs.cpp
 set(USE_OPENBLAS ON CACHE BOOL "Use OpenBLAS")
 set(BLA_VENDOR OpenBLAS)
-set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/opt/homebrew/opt/openblas")
-
+if(APPLE)
+    set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} "/opt/homebrew/opt/openblas")
+    find_package(BLAS REQUIRED)
+elseif(WIN32)
+    # Version and download URL for OpenBLAS
+    set(OPENBLAS_VERSION "0.3.29")
+    set(OPENBLAS_URL "https://github.com/OpenMathLib/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}_x64.zip")
+    
+    # Download and extract OpenBLAS
+    FetchContent_Declare(
+        openblas
+        URL ${OPENBLAS_URL}
+        DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    )
+    FetchContent_MakeAvailable(openblas)
+    
+    # Set OpenBLAS path
+    set(OPENBLAS_ROOT "${openblas_SOURCE_DIR}")
+    set(OPENBLAS_INCLUDE_DIR "${OPENBLAS_ROOT}/include")
+    set(OPENBLAS_LIBRARIES "${OPENBLAS_ROOT}/lib/libopenblas.dll.a")
+    # for demucs.cpp
+    set(BLAS_LIBRARIES "${OPENBLAS_LIBRARIES}" CACHE PATH "Path to BLAS library")
+    set(BLAS_FOUND TRUE CACHE BOOL "BLAS found")
+endif()
 # Add JUCE
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Submodule/JUCE)
 
@@ -18,6 +40,7 @@ set(JUCE_BUILD_TESTS OFF CACHE BOOL "")
 # Add demucs.cpp but disable tests and examples
 set(BUILD_TESTING OFF CACHE BOOL "")
 set(BUILD_EXAMPLES OFF CACHE BOOL "")
+
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/Submodule/demucs.cpp EXCLUDE_FROM_ALL)
 
 juce_add_gui_app(DemucsJUCE
@@ -42,6 +65,7 @@ target_include_directories(DemucsJUCE
         ${CMAKE_CURRENT_SOURCE_DIR}/Source
         ${CMAKE_CURRENT_BINARY_DIR}/JuceLibraryCode
         ${CMAKE_CURRENT_SOURCE_DIR}/Submodule/demucs.cpp/src
+        ${OPENBLAS_INCLUDE_DIR}
 )
 
 target_compile_definitions(DemucsJUCE
@@ -66,8 +90,7 @@ target_link_libraries(DemucsJUCE
         juce::juce_audio_processors
         juce::juce_audio_utils
         demucs.cpp.lib
-        BLAS::BLAS
-        curl
+        "${OPENBLAS_LIBRARIES}"
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -75,6 +98,15 @@ target_link_libraries(DemucsJUCE
 )
 
 if(USE_OPENBLAS)
-    find_package(BLAS REQUIRED)
-    target_link_libraries(DemucsJUCE PRIVATE BLAS::BLAS)
+    set(BLAS_LIBRARIES "${OPENBLAS_LIBRARIES}")
+    set(BLAS_FOUND TRUE)
+endif()
+
+# copy dll for windows
+if(WIN32)
+    add_custom_command(TARGET DemucsJUCE POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "${OPENBLAS_ROOT}/bin/libopenblas.dll"
+            $<TARGET_FILE_DIR:DemucsJUCE>
+    )
 endif() 
