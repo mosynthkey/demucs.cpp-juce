@@ -1,6 +1,6 @@
 # demucs GUI implementation with JUCE
 
-Currently only macOS is supported. (Windows and Linux are not tested)
+Compatible with macOS / Windows
 
 ## How to build
 
